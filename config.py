@@ -1,0 +1,76 @@
+# ゲーム設定ファイル
+
+# ゲーム画面設定
+SCREEN_WIDTH = 256
+SCREEN_HEIGHT = 160
+
+# 拠点設定
+PLAYER_BASE_HP = 20
+ENEMY_BASE_HP = 20
+BASE_WIDTH = 16
+BASE_HEIGHT = 32
+
+# モンスター基本設定
+MONSTER_SIZE = 8
+
+# 戦闘設定
+ATTACK_INTERVAL = 30  # フレーム数（0.5秒間隔）
+COLLISION_DISTANCE = 8
+
+# MPシステム設定
+INITIAL_MP = 10
+MAX_MP = 20
+MP_REGEN_RATE = 0.05
+MAX_UNITS_PER_SIDE = 5
+
+# スポーン位置設定
+PLAYER_SPAWN_X = 5
+ENEMY_SPAWN_X = SCREEN_WIDTH - 53
+ENEMY_SPAWN_INTERVAL = 180  # 3秒間隔（60fps * 3）
+
+# 呪文設定は spell.json で管理されます
+
+# リソースパス設定
+MONSTERS_JSON_PATH = "monsters.json"
+
+# 召喚設定
+ENEMY_SPAWN_INTERVAL = 120  # フレーム数（2秒間隔）
+ENEMY_SPAWN_X_OFFSET = 40
+
+# 色設定
+COLOR_PLAYER_BASE = 5
+COLOR_ENEMY_BASE = 8
+COLOR_PLAYER_MONSTER = 9
+COLOR_ENEMY_MONSTER = 8
+COLOR_TEXT = 7  # 白（デフォルトのテキスト色）
+COLOR_MP = 11    # 水色（MP表示用）
+COLOR_COMBAT_FLASH = 7
+
+# カラーパレットは palette.py で管理
+
+# テキスト色設定
+COLOR_TEXT = 7
+
+# カード設定（画面に収まるサイズに調整）
+CARD_WIDTH = 28
+CARD_HEIGHT = 40
+CARD_MARGIN = 3
+CARD_Y = SCREEN_HEIGHT - CARD_HEIGHT - 5
+MONSTER_CARD_COUNT = 5
+SPELL_CARD_COUNT = 3
+TOTAL_CARD_COUNT = MONSTER_CARD_COUNT + SPELL_CARD_COUNT
+
+# ゲームバランス設定
+MAX_UNITS_PER_SIDE = 10
+INITIAL_MP = 10
+MAX_MP = 20
+MP_REGEN_RATE = 0.1  # フレームあたりのMP回復量
+
+# 設定ファイルパス
+MONSTERS_JSON_PATH = "monsters.json"
+SPELLS_JSON_PATH = "spell.json"
+
+# カード色設定
+COLOR_CARD_BG = 6
+COLOR_CARD_BORDER = 7
+COLOR_CARD_SELECTED = 10

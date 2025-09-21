@@ -1,0 +1,106 @@
+{
+  "monsters": {
+    "red_warrior": {
+      "id": 1,
+      "name": "赤戦士",
+      "hp": 10,
+      "attack": 3,
+      "speed": 1,
+      "attribute": "power",
+      "color": 8,
+      "cost": 3,
+      "sprite_width": 64,
+      "sprite_height": 50,
+      "pyxres": {
+        "bank": 0,
+        "start_x": 192,
+        "start_y": 16
+      }
+    },
+    "green_archer": {
+      "id": 2,
+      "name": "緑弓兵",
+      "hp": 6,
+      "attack": 4,
+      "speed": 1.5,
+      "attribute": "wisdom",
+      "color": 11,
+      "cost": 4,
+      "sprite_width": 64,
+      "sprite_height": 47,
+      "pyxres": {
+        "bank": 0,
+        "start_x": 128,
+        "start_y": 72
+      }
+    },
+    "blue_mage": {
+      "id": 3,
+      "name": "青魔法使い",
+      "hp": 4,
+      "attack": 5,
+      "speed": 0.8,
+      "attribute": "spirit",
+      "color": 12,
+      "cost": 5,
+      "sprite_width": 64,
+      "sprite_height": 56,
+      "pyxres": {
+        "bank": 0,
+        "start_x": 0,
+        "start_y": 16
+      }
+    },
+    "white_healer": {
+      "id": 4,
+      "name": "白僧侶",
+      "hp": 8,
+      "attack": 2,
+      "speed": 1,
+      "attribute": "spirit",
+      "color": 7,
+      "cost": 2,
+      "sprite_width": 64,
+      "sprite_height": 48,
+      "pyxres": {
+        "bank": 0,
+        "start_x": 64,
+        "start_y": 74
+      }
+    },
+    "black_knight": {
+      "id": 5,
+      "name": "黒騎士",
+      "hp": 15,
+      "attack": 2,
+      "speed": 0.5,
+      "attribute": "power",
+      "color": 0,
+      "cost": 6,
+      "sprite_width": 64,
+      "sprite_height": 52,
+      "pyxres": {
+        "bank": 0,
+        "start_x": 64,
+        "start_y": 16
+      }
+    }
+  },
+  "attributes": {
+    "power": {
+      "name": "力",
+      "strong_against": "wisdom",
+      "weak_against": "spirit"
+    },
+    "wisdom": {
+      "name": "知",
+      "strong_against": "spirit",
+      "weak_against": "power"
+    },
+    "spirit": {
+      "name": "霊",
+      "strong_against": "power",
+      "weak_against": "wisdom"
+    }
+  }
+}

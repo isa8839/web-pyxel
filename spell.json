@@ -1,0 +1,58 @@
+{
+  "spells": {
+    "fireball": {
+      "id": 1,
+      "name": "ファイアボール",
+      "cost": 5,
+      "effect": "damage",
+      "value": 3,
+      "target": "area_enemy",
+      "description": "敵全体に3ダメージを与える"
+    },
+    "heal": {
+      "id": 2,
+      "name": "ヒール",
+      "cost": 3,
+      "effect": "heal",
+      "value": 5,
+      "target": "single_ally",
+      "description": "味方1体を5回復する"
+    },
+    "power_up": {
+      "id": 3,
+      "name": "パワーアップ",
+      "cost": 4,
+      "effect": "buff_attack",
+      "value": 2,
+      "target": "single_ally",
+      "description": "味方1体の攻撃力を2上昇させる"
+    }
+  },
+  "effects": {
+    "damage": {
+      "name": "ダメージ",
+      "target_types": ["enemy"],
+      "is_positive": false
+    },
+    "heal": {
+      "name": "回復",
+      "target_types": ["ally"],
+      "is_positive": true
+    },
+    "buff_attack": {
+      "name": "攻撃力上昇",
+      "target_types": ["ally"],
+      "is_positive": true
+    }
+  },
+  "target_types": {
+    "area_enemy": {
+      "name": "敵全体",
+      "description": "敵全体に効果が発動する"
+    },
+    "single_ally": {
+      "name": "味方1体",
+      "description": "味方1体を対象とする"
+    }
+  }
+}

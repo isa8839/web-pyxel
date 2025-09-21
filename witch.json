@@ -1,0 +1,49 @@
+{
+  "witches": {
+    "red_witch": {
+      "id": 1,
+      "name": "ライラ",
+      "hp": 20,
+      "summonable_monsters": ["red_warrior","red_warrior","red_warrior"],
+      "available_spells": ["fireball", "power_up","heal"],
+      "description": "赤の魔女",
+      "sprite_width": 48,
+      "sprite_height": 48,
+      "pyxres": {
+        "bank": 1,
+        "start_x": 49,
+        "start_y": 17
+      }
+    },
+    "blue_witch": {
+      "id": 2,
+      "name": "ユエリン",
+      "hp": 25,
+      "summonable_monsters": ["blue_mage"],
+      "available_spells": ["heal"],
+      "description": "青の魔女",
+      "sprite_width": 48,
+      "sprite_height": 48,
+      "pyxres": {
+        "bank": 1,
+        "start_x": 97,
+        "start_y": 17
+      }
+    },
+    "green_witch": {
+      "id": 3,
+      "name": "アイリス",
+      "hp": 22,
+      "summonable_monsters": ["green_archer"],
+      "available_spells": ["power_up"],
+      "description": "緑の魔女",
+      "sprite_width": 48,
+      "sprite_height": 48,
+      "pyxres": {
+        "bank": 1,
+        "start_x": 146,
+        "start_y": 17
+      }
+    }
+  }
+}
