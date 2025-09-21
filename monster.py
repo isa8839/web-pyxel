@@ -4,14 +4,12 @@ import random
 import json
 import os
 from palette import  set_blend, reset_blend
-from PIL import Image
 import os
 import pyxel
 from config import (
     MONSTER_SIZE, COLLISION_DISTANCE, SCREEN_HEIGHT,
     COLOR_PLAYER_MONSTER, COLOR_ENEMY_MONSTER, COLOR_COMBAT_FLASH
 )
-from PIL import Image as PILImage
 import io
 
 # 画像キャッシュ用のグローバル変数
