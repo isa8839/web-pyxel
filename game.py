@@ -1,6 +1,7 @@
 import pyxel
 import json
 import os
+from button import Button
 from config import (
     SCREEN_WIDTH, SCREEN_HEIGHT,
     INITIAL_MP, MAX_MP, MP_REGEN_RATE, MAX_UNITS_PER_SIDE,
@@ -83,14 +84,29 @@ class Game:
 
         # モンスターリスト
         self.monsters = []
+        
+        # UIボタンリスト
+        self.buttons = []
 
         # 勝敗フラグ
         self.win = False
         self.lose = False
         
-        # ウィンドウシステムに現在の魔女を設定
-        self.window_system = WindowSystem()
+        # Pyxelを初期化
+        pyxel.init(SCREEN_WIDTH, SCREEN_HEIGHT, title="Monster Battle Game")
+        # 背景色を灰色に設定
+        pyxel.cls(13)
+        
+        # BDFフォントを読み込み
+        font_path = os.path.join(os.path.dirname(__file__), "asset", "umplus_j10r.bdf")
+        self.font = pyxel.Font(font_path)
+        
+        # ウィンドウシステムの初期化（gameインスタンスを渡す）
+        self.window_system = WindowSystem(self)
         self.window_system.set_current_witch(self.player)
+        
+        # ボタンの初期化
+        self._init_ui_buttons()
 
         # 敵召喚タイマー
         self.enemy_spawn_timer = 0
@@ -106,19 +122,15 @@ class Game:
         self.long_pressed_spell = None  # 長押し中の呪文ID
         self.long_press_timer = 0  # 長押し時間を計測するタイマー
         self.showing_tooltip = False  # ツールチップ表示中フラグ
-
-        # Pyxelを初期化
-        pyxel.init(SCREEN_WIDTH, SCREEN_HEIGHT, title="Monster Battle Game")
-        # 背景色を灰色に設定
-        pyxel.cls(13)
         
         # マウスカーソルを表示
         pyxel.mouse(True)
         
-        # BDFフォントを読み込み
-        font_path = os.path.join(os.path.dirname(__file__), "asset", "umplus_j10r.bdf")
-        self.font = pyxel.Font(font_path)   
-
+        # クリック処理関連の初期化
+        self._processing_click = False
+        self._last_click_frame = 0  # 最後にクリックが処理されたフレーム番号
+        self._click_cooldown = 0  # クリックのクールダウンを管理するカウンター
+        
         # モンスター画像を読み込む
         monsters_image_path = os.path.join(os.path.dirname(__file__), "asset", "Monsters.png")
         print(f"モンスター画像を読み込みます: {monsters_image_path}")
@@ -183,6 +195,23 @@ class Game:
 
     def update(self):
         """ゲームの更新処理"""
+        # クールダウンを更新
+        if self._click_cooldown > 0:
+            self._click_cooldown -= 1
+            
+        # マウスクリックの処理（ウィンドウの有無に関わらず常に処理）
+        mouse_pressed = pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT)  # マウスの左ボタンが押されたかどうか
+        mouse_x, mouse_y = pyxel.mouse_x, pyxel.mouse_y
+        
+        # ボタンの状態を更新
+        for button in self.buttons:
+            button.update(mouse_x, mouse_y, mouse_pressed)
+            
+        # マウスクリックの処理（クールダウン中は無視）
+        if mouse_pressed and not self._processing_click and self._click_cooldown <= 0:
+            self._handle_mouse_click(mouse_x, mouse_y)
+            self._click_cooldown = 5  # 5フレームのクールダウンを設定
+            
         # ウィンドウが開いている間はゲームを一時停止
         if self.window_system.is_window_open():
             # 長押し状態をリセット
@@ -190,17 +219,9 @@ class Game:
             self.showing_tooltip = False
             return
             
-        # マウスクリックの処理
-        if pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT):
-            mouse_x, mouse_y = pyxel.mouse_x, pyxel.mouse_y
-            self._handle_mouse_click(mouse_x, mouse_y)
-            
         # ゲームオーバーチェック
         if self.win or self.lose:
             return
-        
-        # マウス入力は一時停止に関係なく処理
-        # マウスクリックはpyxel.btnpで既に処理されているため、ここでは処理不要
         
         # MPを回復
         if self.player_mp < self.max_mp:
@@ -208,7 +229,8 @@ class Game:
         
         # 敵の自動召喚
         if pyxel.frame_count % ENEMY_SPAWN_INTERVAL == 0 and self._count_enemy_units() < MAX_UNITS_PER_SIDE:
-            self._spawn_enemy_monster()
+            #self._spawn_enemy_monster()
+            pass
         
         # 各モンスターの更新
         for monster in self.monsters[:]:
@@ -265,50 +287,290 @@ class Game:
         
         return None
 
+    def _init_ui_buttons(self):
+        """UIボタンを初期化"""
+        # 既存のボタンをクリア
+        self.buttons = []
+        
+        # 呪文ボタンの設定
+        button_width = 80
+        button_height = 30
+        side_margin = 4  # 左右のマージン
+        button_margin = 4 # ボタン間のマージン
+        
+        # 左端のボタンのX座標
+        start_x = side_margin
+        button_y = SCREEN_HEIGHT - button_height - 10  # 下から10ピクセルの余白
+        
+        # 呪文ボタンを作成（実際の設定はupdate_ui_buttonsで行う）
+        for i in range(3):
+            x = start_x + i * (button_width + button_margin)
+            button = Button(
+                x, button_y, button_width, button_height,
+                "",  # テキストは後で設定
+                lambda idx=i: self._on_spell_button_click(idx),
+                col=7, bg_col=1, border_col=6, font=self.font,
+                hover_col=3, active_col=5
+            )
+            self.buttons.append(button)
+    
+    def update_ui_buttons(self):
+        """UIボタンの状態を更新"""
+        # 現在の魔女を取得
+        current_witch = self.window_system.current_witch or self.player
+        available_spells = current_witch.get_available_spells()
+        
+        # 各ボタンを更新
+        for i, button in enumerate(self.buttons):
+            if i < len(available_spells):
+                # ボタンに呪文を設定
+                spell_id = available_spells[i]
+                spell_data = self.spells_data.get(spell_id, {})
+                button.text = spell_data.get("name", "呪文")
+
+                # MPが足りるかどうかで有効/無効を切り替え
+                mp_cost = spell_data.get("mp_cost", 0)
+                button.set_disabled(self.player_mp < mp_cost)
+                
+                # ボタンの色を設定
+                button.col = 7  # テキスト色
+                button.bg_col = 1  # 背景色
+                button.border_col = 6  # 枠線色
+                
+                # 効果に応じた色を設定
+                if spell_data.get("effect") == "heal":
+                    button.bg_col = 2  # 緑
+                elif spell_data.get("effect") == "damage":
+                    button.bg_col = 8  # 赤
+                elif spell_data.get("effect") == "buff_attack":
+                    button.bg_col = 10  # 黄緑
+                
+                # ホバー色とアクティブ色を更新
+                button.hover_col = min(15, button.bg_col + 2)
+                button.active_col = max(0, button.bg_col - 2)
+            else:
+                # 使用可能な呪文が3つ未満の場合はボタンを非表示
+                button.text = ""
+                button.set_disabled(True)
+    
+    def _on_spell_button_click(self, button_index):
+        """呪文ボタンがクリックされたときの処理"""
+        print(f"\n[DEBUG][game._on_spell_button_click] 呪文ボタンがクリックされました: {button_index}")
+        
+        # 既に処理中の場合は何もしない
+        if self.casting_spell is not None or self.spell_target_mode:
+            print("[DEBUG][game._on_spell_button_click] 既に処理中のためスキップ")
+            return
+            
+        current_witch = self.window_system.current_witch or self.player
+        available_spells = current_witch.get_available_spells()
+        
+        if 0 <= button_index < len(available_spells):
+            spell_id = available_spells[button_index]
+            spell_data = self.spells_data.get(spell_id, {})
+            
+            # MPを消費
+            mp_cost = spell_data.get("mp_cost", 0)
+            
+            # MPが足りない場合は処理を中断
+            if self.player_mp < mp_cost:
+                print(f"[DEBUG][game._on_spell_button_click] MPが足りません: {self.player_mp}/{mp_cost}")
+                return
+                
+            print(f"[DEBUG][game._on_spell_button_click] 呪文発動: {spell_id}, MP消費: {mp_cost}")
+            self.player_mp = max(0, self.player_mp - mp_cost)
+            
+            # 範囲攻撃の場合は即時発動、それ以外は対象選択モードに
+            if spell_data.get("target") == "area":
+                self._cast_area_spell(spell_data)
+            else:
+                # 呪文IDを文字列で保持
+                self.casting_spell = spell_id
+                self.spell_target_mode = True
+                print(f"[DEBUG] 対象選択モード: {spell_data.get('name')}")
+    
     def _handle_mouse_click(self, mouse_x, mouse_y):
         """マウスクリックの処理"""
-        print(f"\n[DEBUG] クリックイベント: ({mouse_x}, {mouse_y})")
+        print(f"\n[DEBUG][game._handle_mouse_click] クリックイベント開始: ({mouse_x}, {mouse_y})")
         
-        # 呪文の対象選択モード中の場合
-        if self.spell_target_mode:
-            print("[DEBUG] 呪文の対象選択モード中")
-            self._handle_spell_target_selection(mouse_x, mouse_y)
+        # クールダウン中は処理しない
+        if self._click_cooldown > 0:
+            print(f"[DEBUG][game._handle_mouse_click] クールダウン中です (残り{self._click_cooldown}フレーム)")
             return
-        
-        # ウィンドウが開いている場合は、ウィンドウのクリック処理を優先
-        if self.window_system.is_window_open():
-            print(f"[DEBUG] ウィンドウが開いています。クリック位置: ({mouse_x}, {mouse_y})")
-            print(f"[DEBUG] ウィンドウの範囲: x={self.window_system.window_x}-{self.window_system.window_x + self.window_system.window_width}, y={self.window_system.window_y}-{self.window_system.window_y + self.window_system.window_height}")
+            
+        # 既に処理中のクリックイベントがあれば無視
+        if self._processing_click:
+            print("[DEBUG][game._handle_mouse_click] 既に処理中のクリックイベントのためスキップ")
+            return
+            
+        try:
+            self._processing_click = True
+            
+            # 前回のクリックからの経過フレーム数をチェック（連続クリックを防ぐ）
+            current_frame = pyxel.frame_count
+            if hasattr(self, '_last_click_frame') and current_frame - self._last_click_frame < 5:
+                print(f"[DEBUG][game._handle_mouse_click] 連続クリックを検出、処理をスキップします")
+                return
+                
+            self._last_click_frame = current_frame
+            
+            # ウィンドウが開かれてからの経過フレーム数をチェック（ウィンドウが開いた直後のクリックを無視）
+            if hasattr(self.window_system, '_window_opened_time') and pyxel.frame_count - self.window_system._window_opened_time < 5:
+                print(f"[DEBUG][game._handle_mouse_click] ウィンドウが開いた直後のため、クリックを無視します (経過フレーム: {pyxel.frame_count - self.window_system._window_opened_time})")
+                self._processing_click = False
+                return
+                
+            # 呪文の対象選択モード中の場合
+            if self.spell_target_mode:
+                print("[DEBUG][game._handle_mouse_click] 呪文の対象選択モード中")
+                self._handle_spell_target_selection(mouse_x, mouse_y)
+                return
+                
+            # ウィンドウが開いているか確認
+            is_window_open = self.window_system.is_window_open()
+            print(f"[DEBUG][game._handle_mouse_click] ウィンドウ状態: is_window_open={is_window_open}")
+            
+            # ウィンドウが開いている場合は、ウィンドウのクリック処理を優先
+            if is_window_open:
+                print(f"[DEBUG][game._handle_mouse_click] ウィンドウが開いています。クリック位置: ({mouse_x}, {mouse_y})")
+                # ウィンドウが開いている場合は、必ずウィンドウの処理を優先
+                self._processing_click = False
+                return
+                
+                # ウィンドウの座標とサイズを表示
+                window_x = self.window_system.window_x
+                window_y = self.window_system.window_y
+                window_width = self.window_system.window_width
+                window_height = self.window_system.window_height
+                
+                print(f"[DEBUG][game._handle_mouse_click] ウィンドウ範囲: x={window_x}-{window_x + window_width}, y={window_y}-{window_y + window_height}")
+                
+                # ウィンドウの外側をクリックしたかチェック
+                is_inside_window = (window_x <= mouse_x < window_x + window_width and
+                                  window_y <= mouse_y < window_y + window_height)
+                
+                # ウィンドウシステムのハンドラを呼び出す
+                print("[DEBUG][game._handle_mouse_click] window_system.handle_click() を呼び出します")
+                result = self.window_system.handle_click(mouse_x, mouse_y)
+                print(f"[DEBUG][game._handle_mouse_click] window_system.handle_click() の結果: {result}")
+                
+                # ウィンドウが閉じられたかどうかを記録
+                window_was_closed = False
+                
+                if result:
+                    action_type, data = result
+                    print(f"[DEBUG][game._handle_mouse_click] アクションタイプ: {action_type}, データ: {data}")
+                    
+                    if action_type == "handled":
+                        # ウィンドウ内でクリックを処理した場合は、ここで終了
+                        print("[DEBUG][game._handle_mouse_click] ウィンドウ内のクリックを処理しました。")
+                        return
+                    elif action_type == "summon_monster" and data:
+                        print(f"[DEBUG][game._handle_mouse_click] モンスター召喚を試みます: {data}")
+                        if self._try_summon_monster_from_window(data, mouse_x, mouse_y):
+                            print("[DEBUG][game._handle_mouse_click] モンスター召喚に成功しました。")
+                            self.window_system.close_window()
+                            window_was_closed = True
+                            print("[DEBUG][game._handle_mouse_click] ウィンドウを閉じました。")
+                        else:
+                            print("[DEBUG][game._handle_mouse_click] モンスター召喚に失敗しました。")
+                    elif action_type == "close":
+                        print("[DEBUG][game._handle_mouse_click] ウィンドウを閉じます。")
+                        self.window_system.close_window()
+                        window_was_closed = True
+                
+                # ウィンドウが閉じられた場合、またはクリックがウィンドウの外側だった場合は処理を終了
+                if window_was_closed or not is_inside_window:
+                    print("[DEBUG][game._handle_mouse_click] ウィンドウが閉じられたか、ウィンドウ外をクリックしたため、処理を終了します。")
+                    self._processing_click = False
+                    return
+                    
+                # ウィンドウがまだ開いているか確認
+                if self.window_system.is_window_open():
+                    print("[DEBUG][game._handle_mouse_click] ウィンドウがまだ開いているため、他の処理をスキップします。")
+                    return
+                else:
+                    print("[DEBUG][game._handle_mouse_click] ウィンドウは閉じられましたが、クリック位置がウィンドウ内だったため処理を続行します。")
+            
+            print(f"[DEBUG] 通常のクリック処理: ({mouse_x}, {mouse_y})")
+            
+            # 魔女をクリックしたかチェック
+            if self._is_click_on_witch(mouse_x, mouse_y, self.player):
+                # プレイヤーの魔女をクリックした場合
+                print("[DEBUG] プレイヤーの魔女をクリックしました。")
+                self.window_system.open_monster_window()
+                # ウィンドウが開かれたことを確実に描画するために1フレーム待機
+                self._processing_click = False
+                return
+            
+            # 敵の魔女をクリックしたかチェック（デバッグ用）
+            if self._is_click_on_witch(mouse_x, mouse_y, self.enemy):
+                print("[DEBUG] 敵の魔女をクリックしました。")
+                # 敵の魔女をクリックした場合の処理をここに追加
+                return
+                
+        except Exception as e:
+            print(f"[ERROR][game._handle_mouse_click] クリック処理中にエラーが発生しました: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            # クリック処理が完了したことをマーク
+            self._processing_click = False
+            window_x = self.window_system.window_x
+            window_y = self.window_system.window_y
+            window_width = self.window_system.window_width
+            window_height = self.window_system.window_height
+            
+            print(f"[DEBUG][game._handle_mouse_click] ウィンドウ範囲: x={window_x}-{window_x + window_width}, y={window_y}-{window_y + window_height}")
             
             # ウィンドウの外側をクリックしたかチェック
-            if not (self.window_system.window_x <= mouse_x < self.window_system.window_x + self.window_system.window_width and
-                    self.window_system.window_y <= mouse_y < self.window_system.window_y + self.window_system.window_height):
-                print("[DEBUG] ウィンドウの外側をクリックしました")
+            is_inside_window = (window_x <= mouse_x < window_x + window_width and
+                              window_y <= mouse_y < window_y + window_height)
             
+            print(f"[DEBUG][game._handle_mouse_click] クリック位置はウィンドウ{'内' if is_inside_window else '外'}です")
+            
+            # ウィンドウシステムのハンドラを呼び出す
+            print("[DEBUG][game._handle_mouse_click] window_system.handle_click() を呼び出します")
             result = self.window_system.handle_click(mouse_x, mouse_y)
-            print(f"[DEBUG] handle_click の結果: {result}")
+            print(f"[DEBUG][game._handle_mouse_click] window_system.handle_click() の結果: {result}")
+            
+            # ウィンドウが閉じられたかどうかを記録
+            window_was_closed = False
             
             if result:
                 action_type, data = result
-                print(f"[DEBUG] アクションタイプ: {action_type}, データ: {data}")
+                print(f"[DEBUG][game._handle_mouse_click] アクションタイプ: {action_type}, データ: {data}")
                 
-                if action_type == "summon_monster" and data:
-                    print(f"[DEBUG] モンスター召喚を試みます: {data}")
+                if action_type == "handled":
+                    # ウィンドウ内でクリックを処理した場合は、ここで終了
+                    print("[DEBUG][game._handle_mouse_click] ウィンドウ内のクリックを処理しました。")
+                    return
+                elif action_type == "summon_monster" and data:
+                    print(f"[DEBUG][game._handle_mouse_click] モンスター召喚を試みます: {data}")
                     if self._try_summon_monster_from_window(data, mouse_x, mouse_y):
-                        print("[DEBUG] モンスター召喚に成功しました。ウィンドウを閉じます。")
+                        print("[DEBUG][game._handle_mouse_click] モンスター召喚に成功しました。")
                         self.window_system.close_window()
+                        print("[DEBUG][game._handle_mouse_click] ウィンドウを閉じました。")
+                        return  # モンスター召喚に成功したら処理を終了
                     else:
-                        print("[DEBUG] モンスター召喚に失敗しました。")
+                        print("[DEBUG][game._handle_mouse_click] モンスター召喚に失敗しました。")
+                        return  # モンスター召喚に失敗しても処理を終了
                 elif action_type == "close":
-                    print("[DEBUG] ウィンドウを閉じます。")
+                    print("[DEBUG][game._handle_mouse_click] ウィンドウを閉じます。")
                     self.window_system.close_window()
+                    window_was_closed = True
             
+            # ウィンドウが閉じられた場合、またはクリックがウィンドウの外側だった場合は処理を終了
+            if window_was_closed or not is_inside_window:
+                print("[DEBUG][game._handle_mouse_click] ウィンドウが閉じられたか、ウィンドウ外をクリックしたため、処理を終了します。")
+                return
+                
             # ウィンドウがまだ開いているか確認
             if self.window_system.is_window_open():
-                print("[DEBUG] ウィンドウがまだ開いているため、他の処理をスキップします。")
+                print("[DEBUG][game._handle_mouse_click] ウィンドウがまだ開いているため、他の処理をスキップします。")
                 return
             else:
-                print("[DEBUG] ウィンドウは閉じられました。通常のクリック処理に進みます。")
+                print("[DEBUG][game._handle_mouse_click] ウィンドウは閉じられましたが、クリック位置がウィンドウ内だったため処理を続行します。")
         
         print(f"[DEBUG] 通常のクリック処理: ({mouse_x}, {mouse_y})")
         
@@ -317,28 +579,6 @@ class Game:
             print("[DEBUG] 魔女がクリックされました。モンスターウィンドウを開きます。")
             self.window_system.open_monster_window()
             return
-
-        # 使用可能な呪文を取得
-        current_witch = self.window_system.current_witch or self.player
-        available_spells = current_witch.get_available_spells()
-        
-        # ボタンのサイズと間隔
-        button_width = 70
-        button_height = 30
-        button_margin = 8
-        total_width = (button_width * 3) + (button_margin * 2)
-        start_x = (SCREEN_WIDTH - total_width) // 2
-        button_y = SCREEN_HEIGHT - button_height - 10
-        
-        # 各呪文ボタンの描画とクリック判定
-        for i, spell_id in enumerate(available_spells):
-            if i >= 3:  # 最大3つのボタンのみ表示
-                break
-                
-            x = start_x + i * (button_width + button_margin)
-            
-            # ボタンの背景色（MPが足りるかどうかで色を変更）
-            spell_data = self.spells_data.get(spell_id, {})
             can_cast = self.player_mp >= spell_data.get("cost", 0)
             button_color = 1 if can_cast else 8
             
@@ -376,7 +616,6 @@ class Game:
                             self.spell_target_mode = True
                     else:
                         print("MPが足りません")
-                    break
             
             # 戦場クリック（呪文対象選択用）
             if mouse_y < SCREEN_HEIGHT - 30:
@@ -577,7 +816,9 @@ class Game:
                 # 呪文を発動
                 self._cast_single_spell(spell_data, target_monster)
                 self.player_mp -= spell_cost
-                print(f"{spell_data.get('name')}を{target_monster.name}に発動しました！ (MP: -{spell_cost})")
+                # モンスターの名前を取得（sprite_dataがあればそれを使用、なければmonster_typeを使用）
+                monster_name = target_monster.sprite_data.get('name', target_monster.monster_type)
+                print(f"{spell_data.get('name')}を{monster_name}に発動しました！ (MP: -{spell_cost})")
                 
                 # エフェクト表示（必要に応じて実装）
                 if hasattr(target_monster, 'show_effect'):
@@ -644,8 +885,10 @@ class Game:
                 
             elif effect == "buff_attack":
                 # 攻撃力上昇バフ
-                target_monster.attack_power += value
-                print(f"{target_monster.name}の攻撃力が{value}上がった！ (攻撃力: {target_monster.attack_power})")
+                target_monster.base_atk += value
+                target_monster._atk = target_monster.base_atk  # 現在の攻撃力も更新
+                monster_name = target_monster.sprite_data.get('name', target_monster.monster_type)
+                print(f"{monster_name}の攻撃力が{value}上がった！ (攻撃力: {target_monster._atk})")
                 
                 # バフエフェクト（黄色の数字）
                 if hasattr(target_monster, 'show_effect'):
@@ -653,8 +896,11 @@ class Game:
                     
             elif effect == "buff_defense":
                 # 防御力上昇バフ
+                if not hasattr(target_monster, 'defense'):
+                    target_monster.defense = 0
                 target_monster.defense += value
-                print(f"{target_monster.name}の防御力が{value}上がった！ (防御力: {target_monster.defense})")
+                monster_name = target_monster.sprite_data.get('name', target_monster.monster_type)
+                print(f"{monster_name}の防御力が{value}上がった！ (防御力: {target_monster.defense})")
                 
                 # バフエフェクト（水色の数字）
                 if hasattr(target_monster, 'show_effect'):
@@ -900,56 +1146,48 @@ class Game:
             spell_name = self.casting_spell  # 文字列の呪文名を取得
             spell_data = self.spells_data.get(spell_name, {})
             if spell_data:
-                instruction = f"{spell_data.get('name', '呪文')}の対象を選択してください"
-                text_width = self.font.text_width(instruction)
-                text_x = (SCREEN_WIDTH - text_width) // 2
-                pyxel.rect(text_x - 5, 35, text_width + 10, 12, 1)
-                pyxel.rectb(text_x - 5, 35, text_width + 10, 12, 7)
-                pyxel.text(text_x, 40, instruction, 7, self.font)
+                # 対象選択中のメッセージを表示
+                target_text = f"{spell_name} の対象を選択してください"
+                text_width = len(target_text) * 4
+                pyxel.rect(SCREEN_WIDTH // 2 - text_width // 2 - 5, 10, text_width + 10, 16, 7)
+                pyxel.text(SCREEN_WIDTH // 2 - text_width // 2, 16, target_text, 0)
+                
+                # キャンセルメッセージ
+                cancel_text = "右クリックでキャンセル"
+                pyxel.text(SCREEN_WIDTH - 100, 30, cancel_text, 8)
         
-        # 使用可能なスペルを画面下にボタンとして表示
+        # 現在の魔女の呪文を取得
         current_witch = self.window_system.current_witch or self.player
         available_spells = current_witch.get_available_spells()
         
-        # ボタンのサイズと間隔
-        button_width = 70
-        button_height = 30
-        button_margin = 8
-        total_width = (button_width * 3) + (button_margin * 2)
-        start_x = (SCREEN_WIDTH - total_width) // 2
-        button_y = SCREEN_HEIGHT - button_height - 10
-        
-        for i, spell_id in enumerate(available_spells):
-            if i >= 3:  # 最大3つのボタンのみ表示
-                break
+        # 通常のボタンを描画
+        for i, button in enumerate(self.buttons):
+            # ボタンのテキストを設定
+            if i < len(available_spells):
+                spell_id = available_spells[i]
+                spell_data = self.spells_data.get(spell_id, {})
+                spell_name = spell_data.get("name", "")
+                mp_cost = spell_data.get("cost", 0)
                 
-            spell_data = self.spells_data.get(spell_id, {})
-            if not spell_data:
-                continue
+                # 日本語の呪文名を表示（改行でMPコストを下に表示）
+                button.text = f"{spell_name}\n{mp_cost}MP"
                 
-            x = start_x + i * (button_width + button_margin)
+                # ボタンの無効状態を設定（MPが足りない場合は無効）
+                button.disabled = (self.player_mp < mp_cost)
+                
+                # ボタンの色を設定（無効時はグレーアウト）
+                if button.disabled:
+                    button.col = 8  # グレー
+                    button.bg_col = 2  # 暗い色
+                else:
+                    button.col = 7  # 白
+                    button.bg_col = 1  # 黒
             
-            # ボタンの背景（MPが足りるかどうかで色を変更）
-            button_color = 1 if self.player_mp >= spell_data.get("cost", 0) else 8
-            pyxel.rect(x, button_y, button_width, button_height, button_color)
-            
-            # ボタンの枠
-            pyxel.rectb(x, button_y, button_width, button_height, 7)
-            
-            # 呪文名（中央揃え）
-            spell_name = spell_data.get("name", "呪文")
-            name_width = self.font.text_width(spell_name)
-            name_x = x + (button_width - name_width) // 2
-            pyxel.text(name_x, button_y + 5, spell_name, 7, self.font)
-            
-            # MPコスト（中央揃え）
-            cost_text = f"MP: {spell_data.get('cost', 0)}"
-            cost_width = self.font.text_width(cost_text)
-            cost_x = x + (button_width - cost_width) // 2
-            pyxel.text(cost_x, button_y + 15, cost_text, 7, self.font)
+            # ボタンを描画
+            button.draw()
 
     def _draw_mp_bar(self, x, y, current_mp, max_mp):
-        """MPバーを描画する
+        """MPバーを描画
         
         Args:
             x (int): バーのX座標
@@ -980,8 +1218,10 @@ class Game:
             # バーを描画
             pyxel.rect(x + 1, y + 1, fill_width, bar_height - 2, color)
             
-            # MPの数値を表示
-            mp_text = f"MP: {int(current_mp)}/{max_mp}"
+            # MPの数値を表示（整数に変換）
+            current_mp_int = int(round(current_mp))  # 四捨五入してから整数に変換
+            max_mp_int = int(max_mp)
+            mp_text = f"MP: {current_mp_int}/{max_mp_int}"
             text_x = x + (bar_width - len(mp_text) * 4) // 2  # 中央揃え
             pyxel.text(text_x, y + 2, mp_text, 7)  # 白文字
 
@@ -1003,7 +1243,11 @@ class Game:
         pyxel.text(SCREEN_WIDTH // 2 - text_width // 2, 57, text, color)        
 
     def _draw_ui(self):
-        """UIを描画"""
+        """
+        ゲームのUIを描画する
+        
+        ウィンドウ、MPバー、ボタンなどのUI要素を描画する
+        """
         # ウィンドウを先に描画（背景として）
         self.window_system.draw()
         
@@ -1011,9 +1255,7 @@ class Game:
         pyxel.rect(12, 12, int(100 * (self.player_mp / self.max_mp)), 12, 11)
         pyxel.text(15, 14, f"MP: {int(self.player_mp)}/{self.max_mp}", 0)  # テキストを黒色に変更
         
-        # 敵のMP表示
-        #pyxel.rect(SCREEN_WIDTH - 114, 10, 104, 16, 7)  # 背景を灰色に変更
-        #pyxel.rect(SCREEN_WIDTH - 112, 12, int(100 * (self.enemy_mp / self.max_mp)), 12, 11)
-        #pyxel.text(SCREEN_WIDTH - 109, 14, f"MP: {int(self.enemy_mp)}/{self.max_mp}", 0)  # テキストを黒色に変更
-        
-        # 使用可能なSpellボタンは_draw_ui_buttonsで描画
+        # 敵のMP表示（コメントアウトされたまま）
+        # pyxel.rect(SCREEN_WIDTH - 114, 10, 104, 16, 7)  # 背景を灰色に変更
+        # pyxel.rect(SCREEN_WIDTH - 112, 12, int(100 * (self.enemy_mp / self.max_mp)), 12, 11)
+        # pyxel.text(SCREEN_WIDTH - 109, 14, f"MP: {int(self.enemy_mp)}/{self.max_mp}", 0)  # テキストを黒色に変更

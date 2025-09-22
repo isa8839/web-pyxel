@@ -26,7 +26,6 @@ MAX_UNITS_PER_SIDE = 5
 # スポーン位置設定
 PLAYER_SPAWN_X = 5
 ENEMY_SPAWN_X = SCREEN_WIDTH - 53
-ENEMY_SPAWN_INTERVAL = 180  # 3秒間隔（60fps * 3）
 
 # 呪文設定は spell.json で管理されます
 

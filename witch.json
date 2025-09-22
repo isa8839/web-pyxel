@@ -4,7 +4,7 @@
       "id": 1,
       "name": "ライラ",
       "hp": 20,
-      "summonable_monsters": ["red_warrior","red_warrior","red_warrior"],
+      "summonable_monsters": ["red_warrior","blue_mage","green_archer"],
       "available_spells": ["fireball", "power_up","heal"],
       "description": "赤の魔女",
       "sprite_width": 48,
